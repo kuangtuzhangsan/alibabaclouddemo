@@ -22,4 +22,26 @@
             LIMIT 1
     </select>
 
+    <update id="disableOldVersion"
+            parameterType="string">
+
+        UPDATE function_definition
+        SET
+            status = 0,
+            update_time = NOW()
+        WHERE
+            function_code = #{functionCode}
+          AND status = 1
+
+    </update>
+
+    <select id="selectMaxVersion"
+            parameterType="string"
+            resultType="int">
+        SELECT MAX(version)
+        FROM function_definition
+        WHERE function_code = #{functionCode}
+    </select>
+
+
 </mapper>

@@ -25,4 +25,8 @@ public class FunctionWrapper {
     public long getVersion() {
         return version;
     }
+
+    public Script getScript() {
+        return compiledScript;
+    }
 }

@@ -9,4 +9,11 @@ import org.apache.ibatis.annotations.Param;
 public interface FunctionMapper extends BaseMapper<FunctionEntity> {
 
     FunctionEntity findActiveByCode(@Param("code") String code);
+
+    /**
+     * 将指定 functionCode 的所有生效版本置为失效
+     */
+    int disableOldVersion(@Param("functionCode") String functionCode);
+
+    Integer selectMaxVersion(@Param("functionCode") String functionCode);
 }
