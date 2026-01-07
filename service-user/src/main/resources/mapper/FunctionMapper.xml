@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.user.function.dao.FunctionMapper">
+
+    <select id="findActiveByCode"
+            parameterType="string"
+            resultType="com.example.user.function.model.FunctionEntity">
+        SELECT
+            id,
+            function_code,
+            function_name,
+            groovy_script,
+            version,
+            status
+        FROM function_definition
+        WHERE function_code = #{code}
+          AND status = 1
+        ORDER BY version DESC
+            LIMIT 1
+    </select>
+
+</mapper>
