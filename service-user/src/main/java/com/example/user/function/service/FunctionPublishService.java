@@ -1,5 +1,8 @@
 package com.example.user.function.service;
 
+import com.example.common.exception.BizException;
+import com.example.common.exception.FunctionVersionConflictException;
+import com.example.common.util.JsonUtils;
 import com.example.user.function.dao.FunctionMapper;
 import com.example.user.function.dao.FunctionPublishLogMapper;
 import com.example.user.function.dto.FunctionPublishRequest;
@@ -7,6 +10,8 @@ import com.example.user.function.event.FunctionCacheRefreshEvent;
 import com.example.user.function.model.FunctionEntity;
 import com.example.user.function.model.FunctionPublishLog;
 import com.example.user.function.mq.FunctionCacheEventProducer;
+import com.example.user.function.outbox.mapper.FunctionEventOutboxMapper;
+import com.example.user.function.outbox.model.FunctionEventOutbox;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,67 +28,55 @@ public class FunctionPublishService {
     private FunctionPublishLogMapper logMapper;
 
     @Autowired
+    private FunctionEventOutboxMapper outboxMapper;
+
+    @Autowired
     private FunctionRefreshService refreshService;
 
     @Autowired
     private FunctionCacheEventProducer eventProducer;
 
     @Transactional
-    public void publish(FunctionPublishRequest request) {
+    public void publish(FunctionPublishRequest request) throws BizException, FunctionVersionConflictException {
+
+        validateVersion(request);
+
+        FunctionEntity entity = buildEntity(request);
+
+        functionMapper.disableOldVersion(entity.getFunctionCode());
+        functionMapper.insert(entity);
+
+        refreshService.refresh(entity.getFunctionCode(), entity.getVersion());
+
+        // ⭐ 写 Outbox（事务一致性）
+        FunctionCacheRefreshEvent event = new FunctionCacheRefreshEvent();
+        event.setFunctionCode(entity.getFunctionCode());
+        event.setVersion(entity.getVersion());
+        event.setFullRefresh(false);
+
+        FunctionEventOutbox outbox = new FunctionEventOutbox();
+        outbox.setEventType("FUNCTION_CACHE_REFRESH");
+        outbox.setEventKey(entity.getFunctionCode() + "_" + entity.getVersion());
+        outbox.setPayload(JsonUtils.toJson(event));
+
+        outboxMapper.insert(outbox);
 
         FunctionPublishLog log = new FunctionPublishLog();
         log.setFunctionCode(request.getFunctionCode());
         log.setVersion(request.getVersion());
         log.setOperator(request.getOperator());
         log.setPublishType("API");
-
-        try {
-            // 1. 版本冲突校验
-            validateVersion(request);
-
-            // 2. 构造实体
-            FunctionEntity entity = new FunctionEntity();
-            entity.setFunctionCode(request.getFunctionCode());
-            entity.setFunctionName(request.getFunctionName());
-            entity.setGroovyScript(request.getGroovyScript());
-            entity.setVersion(Long.valueOf(request.getVersion()));
-            entity.setStatus(1);
-
-            // 3. 失效旧版本
-            functionMapper.disableOldVersion(entity.getFunctionCode());
-
-            // 4. 插入新版本
-            functionMapper.insert(entity);
-
-            // 5. 本机刷新
-            refreshService.refresh(entity.getFunctionCode(), entity.getVersion());
-
-            // 6. 事务提交后发 MQ
-            registerAfterCommit(entity);
-
-            // 7. 记录成功日志
-            log.setPublishStatus(1);
-            logMapper.insert(log);
-
-        } catch (Exception e) {
-
-            // 记录失败日志
-            log.setPublishStatus(0);
-            log.setFailReason(e.getMessage());
-            logMapper.insert(log);
-
-            throw e;
-        }
+        // 7. 记录成功日志
+        log.setPublishStatus(1);
+        logMapper.insert(log);
     }
 
-    private void validateVersion(FunctionPublishRequest request) {
+    private void validateVersion(FunctionPublishRequest request) throws FunctionVersionConflictException {
         Integer maxVersion =
                 functionMapper.selectMaxVersion(request.getFunctionCode());
 
         if (maxVersion != null && request.getVersion() <= maxVersion) {
-            throw new IllegalStateException(
-                    "Version conflict, max version = " + maxVersion
-            );
+            throw new FunctionVersionConflictException(request.getFunctionCode(), request.getVersion(), maxVersion);
         }
     }
 
@@ -103,6 +96,23 @@ public class FunctionPublishService {
                 }
         );
     }
+
+    private FunctionEntity buildEntity(FunctionPublishRequest request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException("FunctionPublishRequest is null");
+        }
+
+        FunctionEntity entity = new FunctionEntity();
+        entity.setFunctionCode(request.getFunctionCode());
+        entity.setFunctionName(request.getFunctionName());
+        entity.setGroovyScript(request.getGroovyScript());
+        entity.setVersion(Long.valueOf(request.getVersion()));
+        entity.setStatus(1);
+
+        return entity;
+    }
+
 }
 
 
