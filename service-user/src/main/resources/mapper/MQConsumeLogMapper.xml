@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.user.function.outbox.mapper.MQConsumeLogMapper">
+
+    <select id="exists" resultType="int">
+        SELECT COUNT(1)
+        FROM mq_consume_log
+        WHERE event_type = #{eventType}
+          AND event_key = #{eventKey}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO mq_consume_log (event_type, event_key)
+        VALUES (#{eventType}, #{eventKey})
+    </insert>
+
+</mapper>

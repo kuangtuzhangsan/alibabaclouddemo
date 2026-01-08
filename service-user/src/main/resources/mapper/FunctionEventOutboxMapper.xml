@@ -33,4 +33,23 @@
         WHERE id = #{id}
     </update>
 
+    <select id="selectForSend" resultType="com.example.user.function.outbox.model.FunctionEventOutbox">
+        SELECT *
+        FROM function_event_outbox
+        WHERE status = 0
+          AND (next_retry_time IS NULL OR next_retry_time &lt;= NOW())
+        ORDER BY id
+            LIMIT #{limit}
+            FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="markFailed">
+        UPDATE function_event_outbox
+        SET status = 2,
+            retry_count = #{retryCount},
+            next_retry_time = #{nextRetryTime},
+            error_msg = #{errorMsg}
+        WHERE id = #{id}
+    </update>
+
 </mapper>

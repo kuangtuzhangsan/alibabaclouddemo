@@ -2,21 +2,16 @@ package com.example.user.function.service;
 
 import com.example.common.exception.BizException;
 import com.example.common.exception.FunctionVersionConflictException;
-import com.example.common.util.JsonUtils;
 import com.example.user.function.dao.FunctionMapper;
 import com.example.user.function.dao.FunctionPublishLogMapper;
 import com.example.user.function.dto.FunctionPublishRequest;
-import com.example.user.function.event.FunctionCacheRefreshEvent;
 import com.example.user.function.model.FunctionEntity;
 import com.example.user.function.model.FunctionPublishLog;
-import com.example.user.function.mq.FunctionCacheEventProducer;
-import com.example.user.function.outbox.mapper.FunctionEventOutboxMapper;
-import com.example.user.function.outbox.model.FunctionEventOutbox;
+import com.example.user.function.outbox.service.FunctionEventOutboxService;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class FunctionPublishService {
@@ -28,13 +23,10 @@ public class FunctionPublishService {
     private FunctionPublishLogMapper logMapper;
 
     @Autowired
-    private FunctionEventOutboxMapper outboxMapper;
-
-    @Autowired
     private FunctionRefreshService refreshService;
 
     @Autowired
-    private FunctionCacheEventProducer eventProducer;
+    private FunctionEventOutboxService outboxService;
 
     @Transactional
     public void publish(FunctionPublishRequest request) throws BizException, FunctionVersionConflictException {
@@ -49,18 +41,16 @@ public class FunctionPublishService {
         refreshService.refresh(entity.getFunctionCode(), entity.getVersion());
 
         // ⭐ 写 Outbox（事务一致性）
-        FunctionCacheRefreshEvent event = new FunctionCacheRefreshEvent();
-        event.setFunctionCode(entity.getFunctionCode());
-        event.setVersion(entity.getVersion());
-        event.setFullRefresh(false);
+        outboxService.writeCacheRefreshEvent(
+                entity.getFunctionCode(),
+                entity.getVersion()
+        );
 
-        FunctionEventOutbox outbox = new FunctionEventOutbox();
-        outbox.setEventType("FUNCTION_CACHE_REFRESH");
-        outbox.setEventKey(entity.getFunctionCode() + "_" + entity.getVersion());
-        outbox.setPayload(JsonUtils.toJson(event));
+        FunctionPublishLog log = buildFunctionPublishLog(request);
+        logMapper.insert(log);
+    }
 
-        outboxMapper.insert(outbox);
-
+    private static @NonNull FunctionPublishLog buildFunctionPublishLog(FunctionPublishRequest request) {
         FunctionPublishLog log = new FunctionPublishLog();
         log.setFunctionCode(request.getFunctionCode());
         log.setVersion(request.getVersion());
@@ -68,7 +58,7 @@ public class FunctionPublishService {
         log.setPublishType("API");
         // 7. 记录成功日志
         log.setPublishStatus(1);
-        logMapper.insert(log);
+        return log;
     }
 
     private void validateVersion(FunctionPublishRequest request) throws FunctionVersionConflictException {
@@ -78,23 +68,6 @@ public class FunctionPublishService {
         if (maxVersion != null && request.getVersion() <= maxVersion) {
             throw new FunctionVersionConflictException(request.getFunctionCode(), request.getVersion(), maxVersion);
         }
-    }
-
-    private void registerAfterCommit(FunctionEntity entity) {
-
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        FunctionCacheRefreshEvent event =
-                                new FunctionCacheRefreshEvent();
-                        event.setFunctionCode(entity.getFunctionCode());
-                        event.setVersion(entity.getVersion());
-                        event.setFullRefresh(false);
-                        eventProducer.send(event);
-                    }
-                }
-        );
     }
 
     private FunctionEntity buildEntity(FunctionPublishRequest request) {
