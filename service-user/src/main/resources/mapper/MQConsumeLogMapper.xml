@@ -9,7 +9,7 @@
         FROM mq_consume_log
         WHERE event_type = #{eventType}
           AND event_key = #{eventKey}
-          AND instanceId = #{instanceId}
+          AND instance_id = #{instanceId}
     </select>
 
     <insert id="insert">
