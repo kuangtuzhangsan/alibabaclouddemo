@@ -9,11 +9,12 @@
         FROM mq_consume_log
         WHERE event_type = #{eventType}
           AND event_key = #{eventKey}
+          AND instanceId = #{instanceId}
     </select>
 
     <insert id="insert">
-        INSERT INTO mq_consume_log (event_type, event_key)
-        VALUES (#{eventType}, #{eventKey})
+        INSERT INTO mq_consume_log (event_type, event_key, instance_id)
+        VALUES (#{eventType}, #{eventKey}, #{instanceId})
     </insert>
 
 </mapper>

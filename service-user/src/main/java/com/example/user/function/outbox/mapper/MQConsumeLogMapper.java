@@ -10,6 +10,7 @@ public interface MQConsumeLogMapper {
     int insert(MQConsumeLog log);
 
     int exists(@Param("eventType") String eventType,
-               @Param("eventKey") String eventKey);
+               @Param("eventKey") String eventKey,
+               @Param("instanceId") String instanceId);
 }
 

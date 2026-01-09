@@ -131,24 +131,6 @@ public class FunctionExecuteService {
         return wrapper;
     }
 
-    private void writeCacheRefreshOutbox(FunctionEntity entity) {
-
-        FunctionCacheRefreshEvent event =
-                new FunctionCacheRefreshEvent();
-        event.setFunctionCode(entity.getFunctionCode());
-        event.setVersion(entity.getVersion());
-        event.setFullRefresh(false);
-
-        FunctionEventOutbox outbox = new FunctionEventOutbox();
-        outbox.setEventType("FUNCTION_CACHE_REFRESH");
-        outbox.setEventKey(
-                entity.getFunctionCode() + "_" + entity.getVersion()
-        );
-        outbox.setPayload(JsonUtils.toJson(event));
-
-        outboxMapper.insert(outbox);
-    }
-
 }
 
 

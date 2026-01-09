@@ -1,9 +1,11 @@
 package com.example.user.function.mq;
 
 import com.example.user.function.event.FunctionCacheRefreshEvent;
+import com.example.user.function.outbox.NacosInstanceIdProvider;
 import com.example.user.function.outbox.mapper.MQConsumeLogMapper;
 import com.example.user.function.outbox.model.MQConsumeLog;
 import com.example.user.function.service.FunctionRefreshService;
+import org.apache.rocketmq.spring.annotation.MessageModel;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +16,8 @@ import java.time.LocalDateTime;
 @Component
 @RocketMQMessageListener(
         topic = FunctionCacheEventProducer.TOPIC,
-        consumerGroup = "function-cache-consumer"
+        consumerGroup = "function-cache-consumer",
+        messageModel = MessageModel.BROADCASTING
 )
 public class FunctionCacheEventConsumer
         implements RocketMQListener<FunctionCacheRefreshEvent> {
@@ -27,14 +30,19 @@ public class FunctionCacheEventConsumer
     @Autowired
     private FunctionRefreshService refreshService;
 
+    @Autowired
+    private NacosInstanceIdProvider nacosInstanceIdProvider;
+
     @Override
     public void onMessage(FunctionCacheRefreshEvent event) {
 
         String eventKey =
                 event.getFunctionCode() + "_" + event.getVersion();
 
+        String instanceId = nacosInstanceIdProvider.getInstanceId();
+
         if (consumeLogMapper.exists(
-                FUNCTION_CACHE_REFRESH, eventKey) > 0) {
+                FUNCTION_CACHE_REFRESH, eventKey, instanceId) > 0) {
             return;
         }
 
@@ -48,6 +56,7 @@ public class FunctionCacheEventConsumer
                 new MQConsumeLog(
                         FUNCTION_CACHE_REFRESH,
                         eventKey,
+                        instanceId,
                         LocalDateTime.now()
                 )
         );
