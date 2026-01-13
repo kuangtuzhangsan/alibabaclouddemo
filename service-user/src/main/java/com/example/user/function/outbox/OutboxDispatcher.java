@@ -26,7 +26,7 @@ public class OutboxDispatcher {
     @Autowired
     private FunctionCacheEventProducer producer;
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(fixedDelay = 30000)
     @Transactional
     public void dispatch() {
 

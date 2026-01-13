@@ -9,9 +9,17 @@ spring:
       discovery:
         server-addr: 192.168.31.17:18848
     sentinel:
-      transport:
-        dashboard: localhost:8858
-      eager: true
+      datasource:
+        ds1:
+          redis:
+            host: 192.168.31.17
+            port: 16379
+            database: 0
+            master-id: mymaster           # Redis 主节点ID
+            rule-key: sentinel-flow-rules # 存储规则的key
+            rule-type: flow               # 规则类型
+            data-type: json               # 数据格式
+            channel: sentinel-flow-channel # Redis 通道
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://192.168.31.17:13306/demo_db?allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
@@ -25,8 +33,16 @@ spring:
       connection-timeout: 30000
       max-lifetime: 1800000
   redis:
-    host: 192.168.31.17
-    port: 6379
+    host: 192.168.31.17  # 修改为实际的 Redis 服务器地址
+    port: 16379           # 确认端口号正确
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml
   type-aliases-package: com.example.user
@@ -39,3 +55,13 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+RocketMQ:
+  name-server: 192.168.31.17:19876
+  producer:
+    group: function-producer-group
+
+Redisson:
+  config: |
+    singleServerConfig:
+      database: 0

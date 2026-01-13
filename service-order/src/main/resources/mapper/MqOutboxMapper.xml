@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.order.seckill.mapper.MqOutboxMapper">
+
+    <!-- 写 Outbox -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO mq_outbox
+            (topic, msg_key, payload, status, create_time)
+        VALUES
+            (#{topic}, #{msgKey}, #{payload}, 0, NOW())
+    </insert>
+
+    <!-- 查询未发送的消息 -->
+    <select id="selectUnsent" resultType="com.example.order.seckill.entity.MqOutbox">
+        SELECT
+            id, topic, msg_key AS msgKey, payload, status, create_time AS createTime
+        FROM mq_outbox
+        WHERE status = 0
+        ORDER BY id ASC
+            LIMIT #{limit}
+    </select>
+
+    <!-- 标记已发送 -->
+    <update id="markSent">
+        UPDATE mq_outbox
+        SET status = 1
+        WHERE id = #{id}
+    </update>
+
+</mapper>

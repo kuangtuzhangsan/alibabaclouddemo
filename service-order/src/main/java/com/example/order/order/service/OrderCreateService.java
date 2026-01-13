@@ -25,7 +25,6 @@ public class OrderCreateService {
         order.setOrderNo(orderNo);
         order.setStatus(0);
         order.setCreateTime(LocalDateTime.now());
-        order.setUpdateTime(LocalDateTime.now());
 
         orderMapper.insert(order);
 

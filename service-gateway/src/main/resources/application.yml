@@ -4,13 +4,34 @@ server:
 spring:
   application:
     name: service-gateway
+
   cloud:
     nacos:
       discovery:
         server-addr: 192.168.31.17:18848
+#        ip: 192.168.31.17
+      config:
+        server-addr: 192.168.31.17:18848
+        # 关闭 Spring Boot 的 import 校验
+        import-check:
+          enabled: false
+
     gateway:
-      routes:
-        - id: user-service
-          uri: lb://service-user
-          predicates:
-            - Path=/user/**
+      enabled: true
+
+  redis:
+    host: 192.168.31.17  # 修改为实际的 Redis 服务器地址
+    port: 16379           # 确认端口号正确
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.loadbalancer: DEBUG
+    reactor.netty.http.client: DEBUG

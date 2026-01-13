@@ -1,13 +1,20 @@
 package com.example.order.seckill.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.example.common.util.JsonUtils;
+import com.example.order.seckill.entity.MqOutbox;
+import com.example.order.seckill.entity.SeckillEvent;
+import com.example.order.seckill.mapper.MqOutboxMapper;
+import com.example.order.seckill.mq.SeckillConsumer;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
 
 import javax.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
@@ -16,50 +23,51 @@ import java.util.Arrays;
 @Service
 public class SeckillService {
 
-    private static final String LUA_PATH = "lua/seckill.lua";
-
     @Autowired
     private StringRedisTemplate redisTemplate;
-
     @Autowired
-    private RocketMQTemplate rocketMQTemplate;
+    private MqOutboxMapper outboxMapper;
 
-    private DefaultRedisScript<Long> seckillScript;
+    private DefaultRedisScript<Long> script;
 
     @PostConstruct
     public void init() throws Exception {
-        seckillScript = new DefaultRedisScript<>();
-        seckillScript.setResultType(Long.class);
+        script = new DefaultRedisScript<>();
+        script.setResultType(Long.class);
 
         Resource res = new ClassPathResource("lua/seckill.lua");
-        String scriptText = StreamUtils.copyToString(res.getInputStream(), StandardCharsets.UTF_8);
-        seckillScript.setScriptText(scriptText);
+        String text = StreamUtils.copyToString(res.getInputStream(), StandardCharsets.UTF_8);
+        script.setScriptText(text);
     }
 
-    /**
-     * 返回 "SUCCESS","SOLD_OUT","REPEAT"
-     */
+    @SentinelResource(value="seckill", blockHandler="block")
+    @Transactional
     public String seckill(Long skuId, Long userId) {
-        String stockKey = "seckill:stock:" + skuId;
-        String userKey = "seckill:user:" + skuId + ":" + userId;
 
-        Long result = redisTemplate.execute(
-                seckillScript,
-                Arrays.asList(stockKey, userKey)
+        Long r = redisTemplate.execute(
+                script,
+                Arrays.asList("seckill:stock:"+skuId, "seckill:user:"+skuId+":"+userId)
         );
 
-        if (result == null) {
-            return "ERROR";
-        }
-        if (result == -1L) return "SOLD_OUT";
-        if (result == -2L) return "REPEAT";
+        if (r == -1) return "SOLD_OUT";
+        if (r == -2) return "REPEAT";
 
-        // 发送下单消息到 MQ（削峰）
-        String payload = skuId + "," + userId;
-        rocketMQTemplate.convertAndSend("SECKILL_ORDER_TOPIC", payload);
+        SeckillEvent event = new SeckillEvent(skuId, userId);
+
+        MqOutbox out = new MqOutbox();
+        out.setTopic(SeckillConsumer.SECKILL_ORDER_TOPIC);
+        out.setMsgKey(skuId+"_"+userId);
+        out.setPayload(JsonUtils.toJson(event));
+        outboxMapper.insert(out);
+
         return "SUCCESS";
     }
+
+    public String block(Long skuId, Long userId, BlockException e){
+        return "RATE_LIMIT";
+    }
 }
+
 
 
 
