@@ -8,6 +8,8 @@ import com.example.user.function.service.FunctionRefreshService;
 import org.apache.rocketmq.spring.annotation.MessageModel;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +25,8 @@ public class FunctionCacheEventConsumer
         implements RocketMQListener<FunctionCacheRefreshEvent> {
 
     public static final String FUNCTION_CACHE_REFRESH = "FUNCTION_CACHE_REFRESH";
+
+    private static final Logger log = LoggerFactory.getLogger(FunctionCacheEventConsumer.class);
 
     @Autowired
     private MQConsumeLogMapper consumeLogMapper;
@@ -46,19 +50,26 @@ public class FunctionCacheEventConsumer
             return;
         }
 
-        if (event.isFullRefresh()) {
-            refreshService.refreshAll();
-        } else {
-            refreshService.refresh(event.getFunctionCode(), event.getVersion());
-        }
+        try {
+            if (event.isFullRefresh()) {
+                refreshService.refreshAll();
+            } else {
+                refreshService.refresh(event.getFunctionCode(), event.getVersion());
+            }
 
-        consumeLogMapper.insert(
-                new MQConsumeLog(
-                        FUNCTION_CACHE_REFRESH,
-                        eventKey,
-                        instanceId,
-                        LocalDateTime.now()
-                )
-        );
+            // 记录消费日志
+            consumeLogMapper.insert(
+                    new MQConsumeLog(
+                            FUNCTION_CACHE_REFRESH,
+                            eventKey,
+                            instanceId,
+                            LocalDateTime.now()
+                    )
+            );
+
+        } catch (Exception e) {
+            log.error("处理缓存刷新事件失败: functionCode={}, version={}, instanceId={}",
+                    event.getFunctionCode(), event.getVersion(), instanceId, e);
+        }
     }
 }
