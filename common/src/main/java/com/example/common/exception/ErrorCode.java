@@ -10,7 +10,13 @@ public enum ErrorCode {
     FUNCTION_NOT_FOUND(2001, "函数不存在"),
     FUNCTION_VERSION_CONFLICT(2002, "函数版本冲突"),
     FUNCTION_COMPILE_ERROR(2003, "函数编译失败"),
-    FUNCTION_EXECUTE_ERROR(2004, "函数执行失败");
+    FUNCTION_EXECUTE_ERROR(2004, "函数执行失败"),
+
+    // ====订单已存在====
+    ORDER_EXIST(3001, "订单已存在"),
+
+    //
+    USER_NOT_EXIST(4001, "用户不存在");
 
     private final int code;
     private final String message;

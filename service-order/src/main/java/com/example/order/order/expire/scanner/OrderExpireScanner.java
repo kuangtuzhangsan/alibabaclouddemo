@@ -29,7 +29,7 @@ public class OrderExpireScanner {
     @Autowired
     private NacosInstanceIdProvider instanceIdProvider;
 
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(cron = "20 * * * * ?")
     public void scan() {
 
         String instanceId = instanceIdProvider.getInstanceId();

@@ -17,7 +17,7 @@ public class OutboxRelayJob {
     @Autowired
     private RocketMQTemplate mq;
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(cron = "0 0/10 * * * ?")
     public void relay() {
         List<MqOutbox> list = outboxMapper.selectUnsent(100);
 

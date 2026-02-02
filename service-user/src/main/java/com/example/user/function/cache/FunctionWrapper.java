@@ -2,12 +2,14 @@ package com.example.user.function.cache;
 
 
 import groovy.lang.Script;
+import lombok.Getter;
 
 import java.util.Map;
 
 public class FunctionWrapper {
 
     private final String functionCode;
+    @Getter
     private final long version;
     private final Script compiledScript;
 
@@ -20,10 +22,6 @@ public class FunctionWrapper {
     public Object execute(Map<String, Object> params) {
         params.forEach(compiledScript::setProperty);
         return compiledScript.run();
-    }
-
-    public long getVersion() {
-        return version;
     }
 
     public Script getScript() {

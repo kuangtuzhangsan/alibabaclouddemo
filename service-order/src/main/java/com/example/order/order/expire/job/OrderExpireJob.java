@@ -10,6 +10,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * 订单过期job
+ */
 @Component
 @EnableScheduling
 public class OrderExpireJob {
@@ -27,11 +30,11 @@ public class OrderExpireJob {
     @Autowired
     private NacosInstanceIdProvider instanceIdProvider;
 
-    @Scheduled(cron = "10 * * * * ?")
+//    @Scheduled(cron = "20 * * * * ?")
     public void execute() {
 
         String instanceId = instanceIdProvider.getInstanceId();
-        log.info("instanceId="+instanceId);
+        log.info("instanceId={}", instanceId);
 
         boolean locked = lockService.tryLock(
                 LOCK_KEY,

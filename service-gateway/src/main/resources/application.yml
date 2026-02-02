@@ -17,7 +17,20 @@ spring:
           enabled: false
 
     gateway:
-      enabled: true
+      discovery:
+        locator:
+          enabled: false   # 明确关闭，避免卡死
+
+      routes:
+        - id: user
+          uri: lb://service-user
+          predicates:
+            - Path=/user/**
+
+        - id: order
+          uri: lb://service-order
+          predicates:
+            - Path=/order/**
 
   redis:
     host: 192.168.31.17  # 修改为实际的 Redis 服务器地址

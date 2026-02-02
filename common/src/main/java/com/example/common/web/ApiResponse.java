@@ -30,6 +30,10 @@ public class ApiResponse<T> implements Serializable {
         this.data = data;
     }
 
+
+    public ApiResponse() {
+    }
+
     // ===== 成功响应 =====
 
     public static <T> ApiResponse<T> success() {
