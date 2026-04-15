@@ -1,6 +1,6 @@
 package com.example.order.demo.service;
 
-import com.example.order.demo.entity.User;
+import com.example.common.entity.User;
 import com.example.order.demo.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

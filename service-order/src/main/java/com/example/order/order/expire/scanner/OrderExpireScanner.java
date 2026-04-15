@@ -1,6 +1,6 @@
 package com.example.order.order.expire.scanner;
 
-import com.example.order.utils.nacos.NacosInstanceIdProvider;
+import com.example.common.util.NacosInstanceIdProvider;
 import com.example.order.utils.redis.RedisLockService;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,7 +1,6 @@
 package com.example.order.demo.controller;
 
-import com.example.common.web.ApiResponse;
-import com.example.order.demo.entity.User;
+import com.example.common.entity.User;
 import com.example.order.demo.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +16,7 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("/{id}")
-    public ApiResponse<User> get(@PathVariable Long id) {
-        return ApiResponse.success(userService.getById(id));
+    public User get(@PathVariable Long id) {
+        return userService.getById(id);
     }
 }

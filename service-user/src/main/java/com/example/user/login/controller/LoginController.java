@@ -1,6 +1,6 @@
 package com.example.user.login.controller;
 
-import com.example.user.security.JwtUtil;
+import com.example.common.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -34,4 +34,3 @@ public class LoginController {
         return Collections.singletonMap("token", token);
     }
 }
-

@@ -1,7 +1,7 @@
 package com.example.user.function.mq;
 
+import com.example.common.util.NacosInstanceIdProvider;
 import com.example.user.function.event.FunctionCacheRefreshEvent;
-import com.example.user.function.outbox.NacosInstanceIdProvider;
 import com.example.user.function.outbox.mapper.MQConsumeLogMapper;
 import com.example.user.function.outbox.model.MQConsumeLog;
 import com.example.user.function.service.FunctionRefreshService;

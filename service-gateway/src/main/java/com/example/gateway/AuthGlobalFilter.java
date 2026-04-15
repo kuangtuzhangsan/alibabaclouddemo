@@ -1,5 +1,6 @@
 package com.example.gateway;
 
+import com.example.common.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -20,6 +21,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Autowired
     private JwtUtil jwtUtil;
+    
     @Autowired
     private ReactiveStringRedisTemplate redis;
 
@@ -67,4 +69,3 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         return -100;
     }
 }
-

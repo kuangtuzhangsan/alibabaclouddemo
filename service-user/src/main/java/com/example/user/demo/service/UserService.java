@@ -1,7 +1,7 @@
 package com.example.user.demo.service;
 
+import com.example.common.entity.User;
 import com.example.user.demo.constant.CacheNames;
-import com.example.user.demo.entity.User;
 import com.example.user.demo.mapper.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;

@@ -1,19 +1,19 @@
 package com.example.user.function.execute;
 
+import com.example.common.exception.FunctionExecuteException;
 import com.example.common.exception.FunctionNotFoundException;
-import com.example.common.util.JsonUtils;
 import com.example.user.function.cache.FunctionWrapper;
 import com.example.user.function.compile.GroovyCompiler;
 import com.example.user.function.dao.FunctionMapper;
-import com.example.user.function.event.FunctionCacheRefreshEvent;
 import com.example.user.function.model.FunctionEntity;
-import com.example.user.function.outbox.mapper.FunctionEventOutboxMapper;
-import com.example.user.function.outbox.model.FunctionEventOutbox;
 import com.example.user.function.outbox.service.FunctionEventOutboxService;
 import com.github.benmanes.caffeine.cache.Cache;
 import groovy.lang.Script;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +23,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * 函数执行服务
+ * 支持动态 Groovy 脚本执行、超时控制、缓存修复
+ */
 @Service
 public class FunctionExecuteService {
+
+    private static final Logger log = LoggerFactory.getLogger(FunctionExecuteService.class);
 
     @Autowired
     private Cache<String, FunctionWrapper> functionCache;
@@ -42,58 +48,59 @@ public class FunctionExecuteService {
     @Qualifier("functionExecutor")
     private ExecutorService executor;
 
-    @Autowired
-    private FunctionEventOutboxMapper outboxMapper;
+    @Value("${function.execute.timeout-ms:500}")
+    private long timeoutMs;
 
     /**
      * 执行函数（带超时 + 缓存修复）
      */
     @Transactional
-    public Object execute(
-            String functionCode,
-            Map<String, Object> params
-    ) throws FunctionNotFoundException {
-
-        FunctionWrapper wrapper = functionCache.getIfPresent(functionCode);
-
-        // ⭐ 缓存未命中，回源 DB
-        if (wrapper == null) {
-            wrapper = loadFromDbAndRefreshCache(functionCode);
-        }
+    public Object execute(String functionCode, Map<String, Object> params) {
+        
+        FunctionWrapper wrapper = getOrLoadFunction(functionCode);
 
         if (wrapper == null) {
             throw new FunctionNotFoundException(functionCode);
         }
 
-        FunctionWrapper finalWrapper = wrapper;
+        return executeWithTimeout(wrapper, params, functionCode);
+    }
 
+    /**
+     * 获取函数（优先缓存，缓存未命中回源 DB）
+     */
+    private FunctionWrapper getOrLoadFunction(String functionCode) {
+        FunctionWrapper wrapper = functionCache.getIfPresent(functionCode);
+        
+        if (wrapper == null) {
+            log.debug("缓存未命中，回源加载函数: {}", functionCode);
+            wrapper = loadFromDbAndRefreshCache(functionCode);
+        }
+        
+        return wrapper;
+    }
+
+    /**
+     * 带超时控制的函数执行
+     */
+    private Object executeWithTimeout(FunctionWrapper wrapper, Map<String, Object> params, String functionCode) {
         Future<Object> future = executor.submit(() -> {
-
-            Script script = finalWrapper.getScript();
-
-            // 注入参数
+            Script script = wrapper.getScript();
             params.forEach(script::setProperty);
-
             return script.run();
         });
 
         try {
-            // ⏱ 超时控制（例如 500ms）
-            return future.get(500, TimeUnit.MILLISECONDS);
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
 
         } catch (TimeoutException e) {
-
-            // ⚠️ 超时立刻中断
             future.cancel(true);
-
-            throw new RuntimeException(
-                    "Function execution timeout: " + functionCode, e
-            );
+            log.warn("函数执行超时: functionCode={}, timeout={}ms", functionCode, timeoutMs);
+            throw new FunctionExecuteException("Function execution timeout: " + functionCode, e);
 
         } catch (Exception e) {
-            throw new RuntimeException(
-                    "Function execution failed: " + functionCode, e
-            );
+            log.error("函数执行失败: functionCode={}", functionCode, e);
+            throw new FunctionExecuteException("Function execution failed: " + functionCode, e);
         }
     }
 
@@ -101,36 +108,30 @@ public class FunctionExecuteService {
      * DB 回源 + 本地缓存修复 + MQ 通知
      */
     private FunctionWrapper loadFromDbAndRefreshCache(String functionCode) {
-
-        FunctionEntity entity =
-                functionMapper.findActiveByCode(functionCode);
+        FunctionEntity entity = functionMapper.findActiveByCode(functionCode);
 
         if (entity == null) {
             functionCache.invalidate(functionCode);
             return null;
         }
 
-        Script script =
-                groovyCompiler.compile(entity.getGroovyScript());
-
+        Script script = groovyCompiler.compile(entity.getGroovyScript());
         FunctionWrapper wrapper = new FunctionWrapper(
                 entity.getFunctionCode(),
                 entity.getVersion(),
                 script
         );
 
-        // ⭐ 原子写缓存
         functionCache.put(functionCode, wrapper);
-
-        // ⭐ 写 Outbox（非事务也 OK）
+        
         outboxService.writeCacheRefreshEvent(
                 entity.getFunctionCode(),
                 entity.getVersion()
         );
 
+        log.debug("函数已加载到缓存: code={}, version={}", 
+                entity.getFunctionCode(), entity.getVersion());
+
         return wrapper;
     }
-
 }
-
-
