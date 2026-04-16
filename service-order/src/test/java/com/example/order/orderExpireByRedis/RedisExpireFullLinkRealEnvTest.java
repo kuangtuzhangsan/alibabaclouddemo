@@ -62,8 +62,7 @@ class RedisExpireFullLinkRealEnvTest {
             Thread.sleep(100);
         }
 
-        System.out.println(container.isRunning());
-
+        // 容器已启动，继续执行测试
         Thread.sleep(2000); // 再保险一点
 
         // 2. 设置Redis TTL Key

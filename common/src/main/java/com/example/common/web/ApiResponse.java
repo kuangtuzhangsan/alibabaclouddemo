@@ -57,6 +57,20 @@ public class ApiResponse<T> implements Serializable {
     public static <T> ApiResponse<T> fail(int code, String message, T data) {
         return new ApiResponse<>(code, message, data);
     }
+    
+    /**
+     * 快速创建错误响应（使用默认错误码1001）
+     */
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(1001, message, null);
+    }
+    
+    /**
+     * 快速创建错误响应（使用默认错误码1001）
+     */
+    public static <T> ApiResponse<T> error(String message, T data) {
+        return new ApiResponse<>(1001, message, data);
+    }
 
     // ===== getter / setter =====
 
@@ -82,5 +96,14 @@ public class ApiResponse<T> implements Serializable {
 
     public void setData(T data) {
         this.data = data;
+    }
+    
+    @Override
+    public String toString() {
+        return "ApiResponse{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                ", data=" + data +
+                '}';
     }
 }

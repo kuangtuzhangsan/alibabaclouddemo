@@ -61,6 +61,11 @@ rocketmq:
   producer:
     group: order-producer-group
 
+# JWT配置
+jwt:
+  secret: ${JWT_SECRET:gateway-secret}  # 必须通过环境变量JWT_SECRET配置，生产环境禁止使用默认值
+  expire: ${JWT_EXPIRE:86400000}  # 24小时，单位毫秒，可通过环境变量JWT_EXPIRE配置
+
 # 日志级别
 logging:
   level:
